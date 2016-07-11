@@ -187,7 +187,7 @@ public class LDAPTreeReference extends AbstractReference {
         String[] filterArgs = {};
 
         // get a copy of original search controls
-        SearchControls sctls = ldapSourceDirectory.getSearchControls(true);
+        SearchControls sctls = ldapSourceDirectory.getSearchControls();
         sctls.setSearchScope(SearchControls.OBJECT_SCOPE);
         try (LDAPSession sourceSession = (LDAPSession) ldapSourceDirectory.getSession()) {
             if (log.isDebugEnabled()) {
@@ -257,7 +257,7 @@ public class LDAPTreeReference extends AbstractReference {
         String[] filterArgs = {};
 
         // get a copy of original search controls
-        SearchControls sctls = ldapTargetDirectory.getSearchControls(true);
+        SearchControls sctls = ldapTargetDirectory.getSearchControls();
         sctls.setSearchScope(getScope());
         try (LDAPSession targetSession = (LDAPSession) ldapTargetDirectory.getSession()) {
             if (log.isDebugEnabled()) {
