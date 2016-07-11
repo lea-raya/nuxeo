@@ -434,6 +434,9 @@ public class LDAPReference extends AbstractReference {
         SearchResult targetLdapEntry = null;
         String targetDn = null;
 
+        // NXP-20066: fetch all attributes when dynamic groups are used
+        boolean fetchReferences = isDynamic();
+
         // step #1: resolve static references
         String staticAttributeId = getStaticAttributeId();
         if (staticAttributeId != null) {
@@ -443,7 +446,7 @@ public class LDAPReference extends AbstractReference {
 
             if (staticAttributeIdIsDn) {
                 try (LDAPSession targetSession = (LDAPSession) targetDir.getSession()) {
-                    targetLdapEntry = targetSession.getLdapEntry(targetId, false);
+                    targetLdapEntry = targetSession.getLdapEntry(targetId, fetchReferences);
                     if (targetLdapEntry == null) {
                         String msg = String.format("Failed to perform inverse lookup on LDAPReference"
                                 + " resolving field '%s' of '%s' to entries of '%s'"
@@ -504,7 +507,6 @@ public class LDAPReference extends AbstractReference {
             }
         }
         // step #2: resolve dynamic references
-        String dynamicAttributeId = this.dynamicAttributeId;
         if (dynamicAttributeId != null) {
 
             LDAPDirectory ldapSourceDirectory = getSourceLDAPDirectory();
@@ -519,7 +521,7 @@ public class LDAPReference extends AbstractReference {
                     // only fetch the entry if not already fetched by the
                     // static
                     // attributes references resolution
-                    targetLdapEntry = targetSession.getLdapEntry(targetId, false);
+                    targetLdapEntry = targetSession.getLdapEntry(targetId, fetchReferences);
                 }
                 if (targetLdapEntry == null) {
                     String msg = String.format("Failed to perform inverse lookup on LDAPReference"
