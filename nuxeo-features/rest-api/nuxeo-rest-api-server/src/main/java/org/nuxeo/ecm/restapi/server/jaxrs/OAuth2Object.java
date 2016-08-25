@@ -67,7 +67,7 @@ public class OAuth2Object extends AbstractResource<ResourceTypeImpl> {
 
         OAuth2ServiceProvider provider = Framework.getLocalService(OAuth2ServiceProviderRegistry.class)
                                                   .getProvider(providerId);
-        if (provider == null && !(provider instanceof NuxeoOAuth2ServiceProvider)) {
+        if (provider == null || !(provider instanceof NuxeoOAuth2ServiceProvider)) {
             RestOperationException err = new RestOperationException("Invalid provider: " + providerId);
             err.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             throw err;
@@ -78,13 +78,14 @@ public class OAuth2Object extends AbstractResource<ResourceTypeImpl> {
         result.put("enabled", provider.isEnabled());
         result.put("clientId", provider.getClientId());
         result.put("scopes", provider.getScopes());
-        result.put("authorizationUrl", provider.getAuthorizationUrl(request));
+        result.put("authorizationURL", provider.getClientId() == null ? null : provider.getAuthorizationUrl(request));
+        result.put("authorizationServerURL", provider.getAuthorizationServerURL());
         result.put("tokenServerURL", provider.getTokenServerURL());
 
         String username = request.getUserPrincipal().getName();
         NuxeoOAuth2Token token = getToken((NuxeoOAuth2ServiceProvider)provider, username);
         boolean hasToken = (token != null);
-        String login = hasToken ? token.getServiceLogin() : "";
+        String login = hasToken ? token.getServiceLogin() : null;
         result.put("hasToken", hasToken);
         result.put("userId", login);
 
@@ -102,19 +103,20 @@ public class OAuth2Object extends AbstractResource<ResourceTypeImpl> {
 
         OAuth2ServiceProvider provider = Framework.getLocalService(OAuth2ServiceProviderRegistry.class)
             .getProvider(providerId);
-        if (provider == null && !(provider instanceof NuxeoOAuth2ServiceProvider)) {
+        if (provider == null || !(provider instanceof NuxeoOAuth2ServiceProvider)) {
             RestOperationException err = new RestOperationException("Invalid provider: " + providerId);
             err.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             throw err;
         }
+        NuxeoOAuth2ServiceProvider nxprovider = (NuxeoOAuth2ServiceProvider)provider;
 
         String username = request.getUserPrincipal().getName();
-        NuxeoOAuth2Token token = getToken((NuxeoOAuth2ServiceProvider)provider, username);
+        NuxeoOAuth2Token token = getToken(nxprovider, username);
         if (token == null) {
             return Response.status(Status.NOT_FOUND).build();
         }
-        Credential credential = provider.loadCredential((provider instanceof AbstractOAuth2UserEmailProvider) ?
-                                                        token.getServiceLogin() : token.getNuxeoLogin());
+        Credential credential = getCredential(nxprovider, token);
+
         if (credential == null) {
             return Response.status(Status.NOT_FOUND).build();
         }
@@ -143,15 +145,22 @@ public class OAuth2Object extends AbstractResource<ResourceTypeImpl> {
         Map<String, Serializable> filter = new HashMap<>();
         filter.put("serviceName", provider.getId());
         filter.put(NuxeoOAuth2Token.KEY_NUXEO_LOGIN, nxuser);
-        List<DocumentModel> entries = provider.getCredentialDataStore().query(filter);
-        if (entries != null) {
-            if (entries.size() > 1) {
-                throw new NuxeoException("Found multiple " + provider.getId() + " accounts for " + nxuser);
-            } else if (entries.size() == 1) {
-                return new NuxeoOAuth2Token(entries.get(0));
+        return Framework.doPrivileged(() -> {
+            List<DocumentModel> entries = provider.getCredentialDataStore().query(filter);
+            if (entries != null) {
+                if (entries.size() > 1) {
+                    throw new NuxeoException("Found multiple " + provider.getId() + " accounts for " + nxuser);
+                } else if (entries.size() == 1) {
+                    return new NuxeoOAuth2Token(entries.get(0));
+                }
             }
-        }
-        return null;
+            return null;
+        });
+    }
+
+    private Credential getCredential(NuxeoOAuth2ServiceProvider provider, NuxeoOAuth2Token token) {
+        return Framework.doPrivileged(() -> provider.loadCredential(
+            (provider instanceof AbstractOAuth2UserEmailProvider) ? token.getServiceLogin() : token.getNuxeoLogin()));
     }
 
 }
