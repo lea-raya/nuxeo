@@ -36,7 +36,7 @@ import org.nuxeo.runtime.test.runner.FeaturesRunner;
  * @author matic
  */
 @RunWith(FeaturesRunner.class)
-@Features(JtajcaManagementFeature.class)
+@Features({ JtajcaManagementFeature.class, CoreFeature.class })
 public class CanMonitorConnectionPoolTest {
 
     @Inject
@@ -44,7 +44,7 @@ public class CanMonitorConnectionPoolTest {
     protected ConnectionPoolMonitor repo;
 
     @Inject
-    @Named("jdbc/repository_test")
+    @Named("jdbc/nuxeojunittests")
     protected ConnectionPoolMonitor db;
 
     @Inject
