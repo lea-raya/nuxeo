@@ -19,15 +19,6 @@
  */
 package org.nuxeo.ftest.cap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.nuxeo.ftest.cap.TestConstants.TEST_WORKSPACE_PATH;
-import static org.nuxeo.ftest.cap.TestConstants.TEST_WORKSPACE_TITLE;
-import static org.nuxeo.functionaltests.Constants.FILE_TYPE;
-import static org.nuxeo.functionaltests.Constants.WORKSPACES_PATH;
-import static org.nuxeo.functionaltests.Constants.WORKSPACE_TYPE;
-
 import java.io.IOException;
 import java.util.List;
 
@@ -45,6 +36,7 @@ import org.nuxeo.functionaltests.pages.CollectionsPage;
 import org.nuxeo.functionaltests.pages.DocumentBasePage;
 import org.nuxeo.functionaltests.pages.DocumentBasePage.UserNotConnectedException;
 import org.nuxeo.functionaltests.pages.FileDocumentBasePage;
+import org.nuxeo.functionaltests.pages.HomePage;
 import org.nuxeo.functionaltests.pages.NavigationSubPage;
 import org.nuxeo.functionaltests.pages.tabs.CollectionContentTabSubPage;
 import org.nuxeo.functionaltests.pages.tabs.ContentTabSubPage;
@@ -54,6 +46,17 @@ import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
+
+import static org.nuxeo.ftest.cap.TestConstants.TEST_WORKSPACE_PATH;
+import static org.nuxeo.ftest.cap.TestConstants.TEST_WORKSPACE_TITLE;
+
+import static org.nuxeo.functionaltests.Constants.FILE_TYPE;
+import static org.nuxeo.functionaltests.Constants.WORKSPACES_PATH;
+import static org.nuxeo.functionaltests.Constants.WORKSPACE_TYPE;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test Collection feature.
@@ -203,8 +206,10 @@ public class ITCollectionsTest extends AbstractTest {
         CollectionContentTabSubPage collectionContentTabSubPage = contentTabSubPage.goToHomePage()
                                                                                    .goToCollections()
                                                                                    .goToCollection(COLLECTION_NAME_1);
-
         assertEquals(2, collectionContentTabSubPage.getChildDocumentRows().size());
+        // check home tab context is ok
+        HomePage hp = asPage(HomePage.class);
+        assertTrue(hp.isMainTabSelected(hp.homePageLink));
 
         collectionContentTabSubPage = collectionContentTabSubPage.goToHomePage()
                                                                  .goToCollections()
@@ -214,8 +219,7 @@ public class ITCollectionsTest extends AbstractTest {
 
         // Check copy/paste collection
         // navigate back to user workspace root
-        contentTabSubPage = collectionContentTabSubPage.switchToDocumentBase().getContentTab();
-        contentTabSubPage = contentTabSubPage.switchToPersonalWorkspace().getContentTab();
+        contentTabSubPage = collectionContentTabSubPage.switchToPersonalWorkspace().getContentTab();
 
         contentTabSubPage = contentTabSubPage.goToDocument(
                 isEnglish ? MY_COLLECTIONS_EN_LABEL : MY_COLLECTIONS_FR_LABEL).getContentTab();

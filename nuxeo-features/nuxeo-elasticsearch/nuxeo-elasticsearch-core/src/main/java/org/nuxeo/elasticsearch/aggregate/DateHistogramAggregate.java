@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.codehaus.jackson.annotate.JsonIgnore;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.index.query.FilterBuilder;
 import org.elasticsearch.index.query.FilterBuilders;
 import org.elasticsearch.index.query.OrFilterBuilder;
@@ -48,6 +47,7 @@ import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogram;
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramBuilder;
 import org.elasticsearch.search.aggregations.bucket.histogram.Histogram;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.nuxeo.ecm.core.api.DocumentModel;
@@ -59,8 +59,6 @@ import org.nuxeo.ecm.platform.query.core.BucketRangeDate;
  */
 public class DateHistogramAggregate extends AggregateEsBase<BucketRangeDate> {
 
-    Long intervalMillis;
-
     public DateHistogramAggregate(AggregateDefinition definition, DocumentModel searchDocument) {
         super(definition, searchDocument);
     }
@@ -68,7 +66,9 @@ public class DateHistogramAggregate extends AggregateEsBase<BucketRangeDate> {
     @JsonIgnore
     @Override
     public DateHistogramBuilder getEsAggregate() {
-        DateHistogramBuilder ret = AggregationBuilders.dateHistogram(getId()).field(getField());
+        DateHistogramBuilder ret = AggregationBuilders.dateHistogram(getId())
+                                                      .field(getField())
+                                                      .timeZone(DateTimeZone.getDefault().getID());
         Map<String, String> props = getProperties();
         if (props.containsKey(AGG_INTERVAL_PROP)) {
             ret.interval(new DateHistogram.Interval(props.get(AGG_INTERVAL_PROP)));
@@ -118,15 +118,15 @@ public class DateHistogramAggregate extends AggregateEsBase<BucketRangeDate> {
         OrFilterBuilder ret = FilterBuilders.orFilter();
         for (String sel : getSelection()) {
             RangeFilterBuilder rangeFilter = FilterBuilders.rangeFilter(getField());
-            long from = convertStringToDate(sel);
-            long to = from + getIntervalInMillis();
-            rangeFilter.gte(from).lt(to);
+            DateTime from = convertStringToDate(sel);
+            DateTime to = DateHelper.plusDuration(from, getInterval());
+            rangeFilter.gte(from.getMillis()).lt(to.getMillis());
             ret.add(rangeFilter);
         }
         return ret;
     }
 
-    private long convertStringToDate(String date) {
+    private DateTime convertStringToDate(String date) {
         Map<String, String> props = getProperties();
         DateTimeFormatter fmt;
         if (props.containsKey(AGG_FORMAT_PROP)) {
@@ -134,8 +134,10 @@ public class DateHistogramAggregate extends AggregateEsBase<BucketRangeDate> {
         } else {
             throw new IllegalArgumentException("format property must be defined for " + toString());
         }
-        // TODO should take in account all the locale zone stuff ...
-        return fmt.parseDateTime(date).getMillis();
+        if (props.containsKey(AGG_TIME_ZONE_PROP)) {
+            fmt = fmt.withZone(DateTimeZone.forID(props.get(AGG_TIME_ZONE_PROP)));
+        }
+        return fmt.parseDateTime(date);
     }
 
     @JsonIgnore
@@ -145,54 +147,21 @@ public class DateHistogramAggregate extends AggregateEsBase<BucketRangeDate> {
         for (MultiBucketsAggregation.Bucket bucket : buckets) {
             DateHistogram.Bucket dateHistoBucket = (DateHistogram.Bucket) bucket;
             DateTime from = getDateTime(dateHistoBucket.getKeyAsDate());
-            DateTime to = addInterval(from);
+            DateTime to = DateHelper.plusDuration(from, getInterval());
             nxBuckets.add(new BucketRangeDate(bucket.getKey(), from, to, dateHistoBucket.getDocCount()));
         }
         this.buckets = nxBuckets;
     }
 
-    private DateTime addInterval(DateTime from) {
-        return new DateTime(from.getMillis() + getIntervalInMillis());
-    }
-
-    public long getIntervalInMillis() {
-        if (intervalMillis == null) {
-            String interval;
-            Map<String, String> props = getProperties();
-            if (props.containsKey(AGG_INTERVAL_PROP)) {
-                interval = props.get(AGG_INTERVAL_PROP);
-            } else {
-                throw new IllegalArgumentException("interval property must be defined for " + toString());
-            }
-            interval = convertToTimeValueString(interval);
-            intervalMillis = (long) TimeValue.parseTimeValue(interval, null).getMillis();
+    private String getInterval() {
+        String ret;
+        Map<String, String> props = getProperties();
+        if (props.containsKey(AGG_INTERVAL_PROP)) {
+            ret = props.get(AGG_INTERVAL_PROP);
+        } else {
+            throw new IllegalArgumentException("interval property must be defined for " + toString());
         }
-        return intervalMillis;
-    }
-
-    private String convertToTimeValueString(String interval) {
-        switch (interval.toLowerCase()) {
-        case "second":
-            return "1s";
-        case "minute":
-            return "1m";
-        case "hour":
-            return "1h";
-        case "day":
-            return "1d";
-        case "week":
-            return "7d";
-        case "year":
-            return "365d";
-            // may be wrong here ...
-        case "month":
-            return "30d";
-        case "quarter":
-            return "91d";
-        default:
-            // already in ms
-        }
-        return interval;
+        return ret;
     }
 
 }

@@ -14,6 +14,10 @@
 
       <schema>user</schema>
 
+      <types>
+        <type>system</type>
+      </types>
+
       <dataSource>jdbc/nxsqldirectory</dataSource>
 
       <table>users</table>
@@ -40,6 +44,9 @@
     <directory name="groupDirectory">
 
       <schema>group</schema>
+      <types>
+        <type>system</type>
+      </types>
       <dataSource>jdbc/nxsqldirectory</dataSource>
       <table>groups</table>
       <idField>groupname</idField>
@@ -68,6 +75,9 @@
     </directory>
 
     <directory name="digestauth">
+      <types>
+        <type>system</type>
+      </types>
       <cacheEntryName>sql-digestauth-entry-cache</cacheEntryName>
       <cacheEntryWithoutReferencesName>sql-digestauth-entry-cache-without-references</cacheEntryWithoutReferencesName>
       <schema>digestauth</schema>

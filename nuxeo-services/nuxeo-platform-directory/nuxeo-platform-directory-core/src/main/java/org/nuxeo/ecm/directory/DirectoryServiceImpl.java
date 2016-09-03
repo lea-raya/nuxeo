@@ -23,7 +23,6 @@ package org.nuxeo.ecm.directory;
 
 import static org.nuxeo.ecm.directory.localconfiguration.DirectoryConfigurationConstants.DIRECTORY_CONFIGURATION_FACET;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.logging.Log;
@@ -36,7 +35,6 @@ import org.nuxeo.runtime.api.Framework;
 import org.nuxeo.runtime.model.ComponentContext;
 import org.nuxeo.runtime.model.ComponentInstance;
 import org.nuxeo.runtime.model.DefaultComponent;
-import org.nuxeo.runtime.model.Extension;
 import org.nuxeo.runtime.transaction.TransactionHelper;
 
 public class DirectoryServiceImpl extends DefaultComponent implements DirectoryService {

@@ -208,9 +208,8 @@ public class ActionService extends DefaultComponent implements ActionManager {
                         action.setAvailable(false);
                     }
                 }
+                action.setFiltered(true);
             }
-
-            action.setFiltered(true);
             return action;
         } finally {
             long duration = timerContext.stop();
@@ -293,6 +292,9 @@ public class ActionService extends DefaultComponent implements ActionManager {
     }
 
     protected boolean checkFilters(Action action, List<String> filterIds, ActionContext context) {
+        if (filterIds == null || filterIds.isEmpty()) {
+            return true;
+        }
         final Timer.Context timerContext = filtersTimer.time();
         try {
             ActionFilterRegistry filterReg = getFilterRegistry();

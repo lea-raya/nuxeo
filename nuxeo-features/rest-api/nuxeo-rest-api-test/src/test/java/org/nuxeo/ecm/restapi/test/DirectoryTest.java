@@ -23,9 +23,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 
 import javax.inject.Inject;
+import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 
 import org.codehaus.jackson.JsonGenerationException;
@@ -46,6 +49,7 @@ import org.nuxeo.ecm.directory.api.DirectoryEntry;
 import org.nuxeo.ecm.directory.api.DirectoryService;
 import org.nuxeo.ecm.directory.io.DirectoryEntryJsonWriter;
 import org.nuxeo.ecm.directory.io.DirectoryEntryListJsonWriter;
+import org.nuxeo.ecm.directory.io.DirectoryListJsonWriter;
 import org.nuxeo.ecm.platform.usermanager.UserManager;
 import org.nuxeo.runtime.api.Framework;
 import org.nuxeo.runtime.test.runner.Features;
@@ -55,6 +59,7 @@ import org.nuxeo.runtime.test.runner.LocalDeploy;
 import org.nuxeo.runtime.transaction.TransactionHelper;
 
 import com.sun.jersey.api.client.ClientResponse;
+import com.sun.jersey.core.util.MultivaluedMapImpl;
 
 /**
  * @since 5.7.3
@@ -110,6 +115,75 @@ public class DirectoryTest extends BaseTest {
         assertEquals(docEntry.getPropertyValue("vocabulary:label"),
                 node.get("properties").get("label").getValueAsText());
 
+    }
+
+    /**
+     * @since 8.4
+     */
+    @Test
+    public void itCanQueryDirectoryNames() throws Exception {
+        // When I call the Rest endpoint
+        JsonNode node = getResponseAsJson(RequestType.GET, "/directory");
+
+        // It should not return system directories
+        assertEquals(DirectoryListJsonWriter.ENTITY_TYPE, node.get("entity-type").getValueAsText());
+        assertEquals(2, node.get("entries").size());
+        assertEquals("continent", node.get("entries").get(0).get("name").getTextValue());
+        assertEquals("country", node.get("entries").get(1).get("name").getTextValue());
+
+        // It should not retrieve directory with unknown type
+        MultivaluedMap<String, String> queryParams = new MultivaluedMapImpl();
+        queryParams.put("types", Arrays.asList(new String[] { "notExistingType" }));
+        node = getResponseAsJson(RequestType.GET, "/directory", queryParams);
+        assertEquals(DirectoryListJsonWriter.ENTITY_TYPE, node.get("entity-type").getValueAsText());
+        assertEquals(0, node.get("entries").size());
+
+        // It should not retrieve system directories
+        queryParams = new MultivaluedMapImpl();
+        queryParams.put("types", Arrays.asList(new String[] { DirectoryService.SYSTEM_DIRECTORY_TYPE }));
+        node = getResponseAsJson(RequestType.GET, "/directory", queryParams);
+        assertEquals(DirectoryListJsonWriter.ENTITY_TYPE, node.get("entity-type").getValueAsText());
+        assertEquals(0, node.get("entries").size());
+
+        // It should be able to retrieve a single type
+        queryParams = new MultivaluedMapImpl();
+        queryParams.put("types", Arrays.asList(new String[] { "toto" }));
+        node = getResponseAsJson(RequestType.GET, "/directory", queryParams);
+        assertEquals(DirectoryListJsonWriter.ENTITY_TYPE, node.get("entity-type").getValueAsText());
+        assertEquals(1, node.get("entries").size());
+
+        // It should be able to retrieve many types
+        queryParams = new MultivaluedMapImpl();
+        queryParams.put("types", Arrays.asList(new String[] { "toto", "pouet" }));
+        node = getResponseAsJson(RequestType.GET, "/directory", queryParams);
+        assertEquals(DirectoryListJsonWriter.ENTITY_TYPE, node.get("entity-type").getValueAsText());
+        assertEquals(2, node.get("entries").size());
+    }
+
+    /**
+     * @since 8.4
+     */
+    @Test
+    public void itCannotDeleteDirectoryEntryWithConstraints() throws Exception {
+        // When I try to delete an entry which has contraints
+        ClientResponse response = getResponse(RequestType.DELETE, "/directory/continent/europe");
+        // It should fail
+        assertEquals(Response.Status.UNAUTHORIZED.getStatusCode(), response.getStatus());
+
+        // When I remove all the contraints
+        JsonNode node = getResponseAsJson(RequestType.GET, "/directory/country");
+        ArrayNode jsonEntries = (ArrayNode) node.get("entries");
+        Iterator<JsonNode> it = jsonEntries.getElements();
+        while (it.hasNext()) {
+            JsonNode props = it.next().get("properties");
+            if ("europe".equals(props.get("parent").getTextValue())) {
+                response = getResponse(RequestType.DELETE, "/directory/country/" + props.get("id").getTextValue());
+                assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
+            }
+        }
+        // I should be able to delete the entry
+        response = getResponse(RequestType.DELETE, "/directory/continent/europe");
+        assertEquals(Response.Status.NO_CONTENT.getStatusCode(), response.getStatus());
     }
 
     @Test

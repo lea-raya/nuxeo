@@ -18,17 +18,22 @@
  */
 package org.nuxeo.ecm.platform.auth.saml;
 
+import java.util.Date;
+import java.util.UUID;
+
+import javax.servlet.ServletRequest;
+import javax.xml.namespace.QName;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.joda.time.DateTime;
-import org.nuxeo.ecm.platform.ui.web.auth.NuxeoAuthenticationFilter;
+import org.nuxeo.ecm.platform.ui.web.auth.LoginScreenHelper;
 import org.nuxeo.ecm.platform.web.common.vh.VirtualHostHelper;
 import org.opensaml.Configuration;
 import org.opensaml.common.SAMLException;
 import org.opensaml.common.SAMLObject;
 import org.opensaml.common.binding.SAMLMessageContext;
 import org.opensaml.common.xml.SAMLConstants;
-
 import org.opensaml.saml2.core.Assertion;
 import org.opensaml.saml2.core.AuthnRequest;
 import org.opensaml.saml2.core.Conditions;
@@ -51,11 +56,6 @@ import org.opensaml.xml.security.criteria.UsageCriteria;
 import org.opensaml.xml.signature.Signature;
 import org.opensaml.xml.signature.SignatureTrustEngine;
 import org.opensaml.xml.validation.ValidationException;
-
-import javax.servlet.ServletRequest;
-import javax.xml.namespace.QName;
-import java.util.Date;
-import java.util.UUID;
 
 /**
  * Base abstract class for SAML profile processors.
@@ -89,8 +89,8 @@ public abstract class AbstractSAMLProfile {
 
     // VALIDATION
 
-    protected void validateSignature(Signature signature, String IDPEntityID) throws ValidationException,
-            org.opensaml.xml.security.SecurityException {
+    protected void validateSignature(Signature signature, String IDPEntityID)
+            throws ValidationException, org.opensaml.xml.security.SecurityException {
 
         if (trustEngine == null) {
             throw new SecurityException("Trust engine is not set, signature can't be verified");
@@ -129,8 +129,8 @@ public abstract class AbstractSAMLProfile {
             } else if (destination.equals(endpoint.getResponseLocation())) {
             } else {
                 log.debug("Intended destination " + destination + " doesn't match any of the endpoint URLs");
-                throw new SAMLException("Intended destination " + destination
-                        + " doesn't match any of the endpoint URLs");
+                throw new SAMLException(
+                        "Intended destination " + destination + " doesn't match any of the endpoint URLs");
             }
         }
 
@@ -237,6 +237,6 @@ public abstract class AbstractSAMLProfile {
     }
 
     protected String getStartPageURL(ServletRequest request) {
-        return getBaseURL(request) + NuxeoAuthenticationFilter.DEFAULT_START_PAGE;
+        return getBaseURL(request) + LoginScreenHelper.getStartupPagePath();
     }
 }

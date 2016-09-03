@@ -26,6 +26,11 @@
       <autoincrementIdField>false</autoincrementIdField>
       <dataFile>directories/continent.csv</dataFile>
       <createTablePolicy>on_missing_columns</createTablePolicy>
+      <deleteConstraint
+        class="org.nuxeo.ecm.directory.HierarchicalDirectoryDeleteConstraint">
+        <property name="targetDirectory">country</property>
+        <property name="targetDirectoryField">parent</property>
+      </deleteConstraint>
     </directory>
 
     <directory name="l10ncoverage">
@@ -39,6 +44,11 @@
       <autoincrementIdField>false</autoincrementIdField>
       <dataFile>directories/l10ncoverage.csv</dataFile>
       <createTablePolicy>on_missing_columns</createTablePolicy>
+      <deleteConstraint
+        class="org.nuxeo.ecm.directory.HierarchicalDirectoryDeleteConstraint">
+        <property name="targetDirectory">l10ncoverage</property>
+        <property name="targetDirectoryField">parent</property>
+      </deleteConstraint>
     </directory>
 
     <directory name="subtopic">
@@ -64,6 +74,11 @@
       <autoincrementIdField>false</autoincrementIdField>
       <dataFile>directories/topic.csv</dataFile>
       <createTablePolicy>on_missing_columns</createTablePolicy>
+      <deleteConstraint
+        class="org.nuxeo.ecm.directory.HierarchicalDirectoryDeleteConstraint">
+        <property name="targetDirectory">subtopic</property>
+        <property name="targetDirectoryField">parent</property>
+      </deleteConstraint>
     </directory>
 
     <directory name="l10nsubjects">
@@ -77,10 +92,18 @@
       <autoincrementIdField>false</autoincrementIdField>
       <dataFile>directories/l10nsubjects.csv</dataFile>
       <createTablePolicy>on_missing_columns</createTablePolicy>
+      <deleteConstraint
+        class="org.nuxeo.ecm.directory.HierarchicalDirectoryDeleteConstraint">
+        <property name="targetDirectory">l10nsubjects</property>
+        <property name="targetDirectoryField">parent</property>
+      </deleteConstraint>
     </directory>
 
     <directory name="subject">
       <schema>vocabulary</schema>
+      <types>
+        <type>system</type>
+      </types>
       <dataSource>java:/nxsqldirectory</dataSource>
       <cacheTimeout>3600</cacheTimeout>
       <cacheMaxSize>1000</cacheMaxSize>
@@ -93,6 +116,9 @@
 
     <directory name="search_operators">
       <schema>vocabulary</schema>
+      <types>
+        <type>system</type>
+      </types>
       <dataSource>java:/nxsqldirectory</dataSource>
       <table>search_operators</table>
       <cacheTimeout>3600</cacheTimeout>
@@ -105,6 +131,9 @@
 
     <directory name="documentsLists">
       <schema>documentsLists</schema>
+      <types>
+        <type>system</type>
+      </types>
       <dataSource>java:/nxsqldirectory</dataSource>
       <table>documentsLists</table>
       <idField>id</idField>
@@ -144,6 +173,9 @@
     <!-- @since 5.6, deprecated since 8.1, see NXP-18728 -->
     <directory name="locale">
       <schema>vocabulary</schema>
+      <types>
+        <type>system</type>
+      </types>
       <dataSource>java:/nxsqldirectory</dataSource>
       <cacheTimeout>3600</cacheTimeout>
       <cacheMaxSize>1000</cacheMaxSize>

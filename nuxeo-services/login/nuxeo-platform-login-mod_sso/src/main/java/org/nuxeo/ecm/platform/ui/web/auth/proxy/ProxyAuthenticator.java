@@ -39,6 +39,7 @@ import org.nuxeo.ecm.directory.DirectoryException;
 import org.nuxeo.ecm.directory.Session;
 import org.nuxeo.ecm.directory.api.DirectoryService;
 import org.nuxeo.ecm.platform.api.login.UserIdentificationInfo;
+import org.nuxeo.ecm.platform.ui.web.auth.LoginScreenHelper;
 import org.nuxeo.ecm.platform.ui.web.auth.NXAuthConstants;
 import org.nuxeo.ecm.platform.ui.web.auth.NuxeoAuthenticationFilter;
 import org.nuxeo.ecm.platform.ui.web.auth.interfaces.NuxeoAuthenticationPlugin;
@@ -65,14 +66,17 @@ public class ProxyAuthenticator implements NuxeoAuthenticationPlugin {
 
     private Pattern usernamePartRemovalPattern;
 
+    @Override
     public List<String> getUnAuthenticatedURLPrefix() {
         return null;
     }
 
+    @Override
     public Boolean handleLoginPrompt(HttpServletRequest httpRequest, HttpServletResponse httpResponse, String baseURL) {
         return false;
     }
 
+    @Override
     public UserIdentificationInfo handleRetrieveIdentity(HttpServletRequest httpRequest,
             HttpServletResponse httpResponse) {
         String userName = httpRequest.getHeader(userIdHeaderName);
@@ -97,8 +101,8 @@ public class ProxyAuthenticator implements NuxeoAuthenticationPlugin {
                 queryFilters.put(credentialFieldName, userName);
                 DocumentModelList result = userDir.query(queryFilters);
                 if (result.isEmpty()) {
-                    log.error(String.format("could not find any user with %s='%s' in directory %s",
-                            credentialFieldName, userName, directoryName));
+                    log.error(String.format("could not find any user with %s='%s' in directory %s", credentialFieldName,
+                            userName, directoryName));
                     return null;
                 }
                 if (result.size() > 1) {
@@ -139,11 +143,12 @@ public class ProxyAuthenticator implements NuxeoAuthenticationPlugin {
             session = httpRequest.getSession(true);
         }
         if (session != null && !isStartPageValid) {
-            session.setAttribute(NXAuthConstants.START_PAGE_SAVE_KEY, NuxeoAuthenticationFilter.DEFAULT_START_PAGE
-                    + "?loginRedirection=true");
+            session.setAttribute(NXAuthConstants.START_PAGE_SAVE_KEY,
+                    LoginScreenHelper.getStartupPagePath() + "?loginRedirection=true");
         }
     }
 
+    @Override
     public void initPlugin(Map<String, String> parameters) {
         if (parameters.containsKey(HEADER_NAME_KEY)) {
             userIdHeaderName = parameters.get(HEADER_NAME_KEY);
@@ -158,6 +163,7 @@ public class ProxyAuthenticator implements NuxeoAuthenticationPlugin {
         }
     }
 
+    @Override
     public Boolean needLoginPrompt(HttpServletRequest httpRequest) {
         return false;
     }

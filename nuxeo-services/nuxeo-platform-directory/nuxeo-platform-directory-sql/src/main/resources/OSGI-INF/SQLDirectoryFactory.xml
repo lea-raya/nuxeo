@@ -18,6 +18,9 @@
       <code>
         <directory name="userDirectory">
           <schema>vocabulary</schema>
+          <types>
+            <type>system</type>
+          </types>
           <dataSource>java:/nxsqldirectory</dataSource>
           <table>t</table>
           <nativeCase>false</nativeCase>
@@ -51,6 +54,9 @@
         <li>
           schema - the name of the schema to be used for the directory
           entries.
+        </li>
+        <li>
+          types - list of type to categorise directories.
         </li>
         <li>
           dataSource - the dataSource name, as registered in the

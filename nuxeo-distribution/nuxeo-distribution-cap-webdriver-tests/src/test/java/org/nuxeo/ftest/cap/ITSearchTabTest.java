@@ -18,12 +18,6 @@
  */
 package org.nuxeo.ftest.cap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.nuxeo.functionaltests.Constants.NXDOC_URL_FORMAT;
-import static org.nuxeo.functionaltests.Constants.WORKSPACES_PATH;
-import static org.nuxeo.functionaltests.Constants.WORKSPACE_TYPE;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Date;
@@ -56,6 +50,13 @@ import org.nuxeo.functionaltests.pages.search.SearchResultsSubPage;
 import org.nuxeo.functionaltests.pages.tabs.EditTabSubPage;
 import org.openqa.selenium.By;
 import org.openqa.selenium.WebElement;
+
+import static org.nuxeo.functionaltests.Constants.NXDOC_URL_FORMAT;
+import static org.nuxeo.functionaltests.Constants.WORKSPACES_PATH;
+import static org.nuxeo.functionaltests.Constants.WORKSPACE_TYPE;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @since 6.0
@@ -204,14 +205,14 @@ public class ITSearchTabTest extends AbstractTest {
         assertEquals(1, driver.findElements(By.xpath(saveAsPath)).size());
         AjaxRequestManager arm = new AjaxRequestManager(driver);
         arm.begin();
-        driver.findElement(By.xpath(saveAsPath)).click();
+        Locator.findElementWaitUntilEnabledAndClick(By.xpath(saveAsPath));
         arm.end();
 
         WebElement fancybox = Locator.findElementWithTimeout(By.id("nxw_saveSearch_after_view_box"));
         String ssTitle = "Test Saved Search " + new Date().getTime();
         fancybox.findElement(By.xpath(".//input[@type='text']")).sendKeys(ssTitle);
         arm.begin();
-        fancybox.findElement(By.xpath(".//input[@value='Save']")).click();
+        Locator.findElementWaitUntilEnabledAndClick(fancybox, By.xpath(".//input[@value='Save']"));
         arm.end();
 
         SearchPage sp = asPage(SearchPage.class);
@@ -221,8 +222,14 @@ public class ITSearchTabTest extends AbstractTest {
         sp.goToHomePage().goToSavedSearches();
         assertEquals(1, driver.findElements(By.linkText(ssTitle)).size());
 
+        // navigate to it
+        Locator.findElementWaitUntilEnabledAndClick(By.linkText(ssTitle));
+        // check home tab context is ok
+        HomePage hp = asPage(HomePage.class);
+        assertTrue(hp.isMainTabSelected(hp.homePageLink));
+
         // delete saved searches
-        documentBasePage.goToHomePage().goToSavedSearches();
+        hp.goToHomePage().goToSavedSearches();
         arm = new AjaxRequestManager(driver);
         arm.begin();
         Locator.findElementWaitUntilEnabledAndClick(By.id(SELECT_ALL_SAVED_SEARCHES_BUTTON_ID));
@@ -258,24 +265,25 @@ public class ITSearchTabTest extends AbstractTest {
         arm.end();
         WebElement fancybox = Locator.findElementWithTimeout(By.id("fancybox-content"));
         WebElement listShuttle = fancybox.findElement(By.className("listShuttleTable"));
-        listShuttle.findElement(By.xpath(".//td[@class=\"listShuttleSelectElements\"]//option[@value=\"contributors\"]"))
-                   .click();
-        listShuttle.findElement(By.xpath(".//td[@class=\"listShuttleSelectionActions\"]/a[contains(@id, 'nxw_template_addToSelection')]"))
+        listShuttle.findElement(
+                By.xpath(".//td[@class=\"listShuttleSelectElements\"]//option[@value=\"contributors\"]")).click();
+        listShuttle.findElement(By
+                                  .xpath(".//td[@class=\"listShuttleSelectionActions\"]/a[contains(@id, 'nxw_template_addToSelection')]"))
                    .click();
         arm.begin();
-        fancybox.findElement(By.xpath(".//input[@value='Save']")).click();
+        Locator.findElementWaitUntilEnabledAndClick(fancybox, By.xpath(".//input[@value='Save']"));
         arm.end();
 
         // save this search
         arm.begin();
-        driver.findElement(By.xpath("//input[contains(@id, 'nxw_saveSearch_link')]")).click();
+        Locator.findElementWaitUntilEnabledAndClick(By.xpath("//input[contains(@id, 'nxw_saveSearch_link')]"));
         arm.end();
 
         fancybox = Locator.findElementWithTimeout(By.id("nxw_saveSearch_after_view_box"));
         String ssTitle = "Test Saved Search " + new Date().getTime();
         fancybox.findElement(By.xpath(".//input[@type='text']")).sendKeys(ssTitle);
         arm.begin();
-        fancybox.findElement(By.xpath(".//input[@value='Save']")).click();
+        Locator.findElementWaitUntilEnabledAndClick(fancybox, By.xpath(".//input[@value='Save']"));
         arm.end();
 
         // get default search
