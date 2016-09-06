@@ -51,6 +51,7 @@ import org.nuxeo.ecm.automation.OperationDocumentation.Param;
 import org.nuxeo.ecm.automation.OperationException;
 import org.nuxeo.ecm.automation.OperationType;
 import org.nuxeo.ecm.automation.core.Constants;
+import org.nuxeo.ecm.automation.core.trace.TracerFactory;
 import org.nuxeo.ecm.core.api.Blob;
 import org.nuxeo.ecm.core.api.Blobs;
 import org.nuxeo.ecm.core.api.CoreInstance;
@@ -92,6 +93,9 @@ public class TestScriptRunnerInfrastructure {
     ByteArrayOutputStream outContent = new ByteArrayOutputStream();
 
     private PrintStream outStream;
+
+    @Inject
+    TracerFactory factory;
 
     @Before
     public void setUpStreams() {
@@ -426,6 +430,22 @@ public class TestScriptRunnerInfrastructure {
 
     @Test
     public void canUnwrapContextDocListing() throws OperationException {
+        OperationContext ctx = new OperationContext(session);
+        DocumentModel root = session.getRootDocument();
+        DocumentModelList docs = new DocumentModelListImpl();
+        docs.add(root);
+        docs.add(root);
+        ctx.put("docs", docs);
+        Object result = automationService.run(ctx, "Scripting.SimpleScript", null);
+        assertNotNull(result);
+    }
+
+    @Test
+    public void canUnwrapContextWithTrace() throws OperationException {
+        if (!factory.getRecordingState()) {
+            factory.toggleRecording();
+        }
+
         OperationContext ctx = new OperationContext(session);
         DocumentModel root = session.getRootDocument();
         DocumentModelList docs = new DocumentModelListImpl();
