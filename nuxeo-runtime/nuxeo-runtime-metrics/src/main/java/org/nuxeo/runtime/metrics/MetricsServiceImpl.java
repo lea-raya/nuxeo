@@ -54,18 +54,9 @@ public class MetricsServiceImpl extends DefaultComponent implements MetricsServi
         }
     }
 
-    @Override
-    public void deactivate(ComponentContext context) {
-        try {
-            config.disable(registry);
-        } finally {
-            instanceUp.dec();
-        }
-        log.debug("Deactivate component.");
-    }
 
     @Override
-    public void applicationStarted(ComponentContext context) {
+    public void start(ComponentContext context) {
         if (config == null) {
             // Use a default config
             config = new MetricsDescriptor();
@@ -73,6 +64,16 @@ public class MetricsServiceImpl extends DefaultComponent implements MetricsServi
         log.info("Setting up metrics configuration");
         config.enable(registry);
         instanceUp.inc();
+    }
+
+    @Override
+    public void stop(ComponentContext context) {
+        try {
+            config.disable(registry);
+        } finally {
+            instanceUp.dec();
+        }
+        log.debug("Stopped metrics service.");
     }
 
 }
