@@ -19,10 +19,18 @@
 
 package org.nuxeo.ecm.platform.computedgroups.test;
 
-import static org.junit.Assert.*;
+import static junit.framework.TestCase.assertEquals;
+import static junit.framework.TestCase.assertNotNull;
+import static junit.framework.TestCase.assertNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 
 import javax.inject.Inject;
 
@@ -33,11 +41,19 @@ import org.nuxeo.ecm.core.api.DocumentModelList;
 import org.nuxeo.ecm.core.api.NuxeoException;
 import org.nuxeo.ecm.core.api.NuxeoGroup;
 import org.nuxeo.ecm.core.test.CoreFeature;
-import org.nuxeo.ecm.platform.computedgroups.*;
+import org.nuxeo.ecm.platform.computedgroups.ComputedGroupsService;
+import org.nuxeo.ecm.platform.computedgroups.ComputedGroupsServiceImpl;
+import org.nuxeo.ecm.platform.computedgroups.GroupComputer;
+import org.nuxeo.ecm.platform.computedgroups.GroupComputerDescriptor;
+import org.nuxeo.ecm.platform.computedgroups.UserManagerWithComputedGroups;
 import org.nuxeo.ecm.platform.usermanager.NuxeoPrincipalImpl;
 import org.nuxeo.ecm.platform.usermanager.UserManager;
 import org.nuxeo.ecm.platform.usermanager.UserManagerImpl;
-import org.nuxeo.runtime.test.runner.*;
+import org.nuxeo.runtime.test.runner.Deploy;
+import org.nuxeo.runtime.test.runner.Features;
+import org.nuxeo.runtime.test.runner.FeaturesRunner;
+import org.nuxeo.runtime.test.runner.LocalDeploy;
+import org.nuxeo.runtime.test.runner.RuntimeHarness;
 
 @RunWith(FeaturesRunner.class)
 @Features(CoreFeature.class) // to init properties for SQL datasources
@@ -153,8 +169,8 @@ public class TestComputedGroupService {
 
     }
 
-    @Test(expected = NullPointerException.class)
-    public void testResolveMembersInVirtualGroupException() throws Exception {
+    @Test
+    public void testResolveMembersInVirtualGroup() throws Exception {
         List<String> users = um.getUsersInGroupAndSubGroups("Grp1");
         assertEquals(2, users.size());
     }

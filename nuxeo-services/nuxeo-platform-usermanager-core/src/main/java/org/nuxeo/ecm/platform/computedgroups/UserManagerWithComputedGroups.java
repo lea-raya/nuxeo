@@ -121,10 +121,6 @@ public class UserManagerWithComputedGroups extends UserManagerImpl {
 
     @Override
     public NuxeoGroup getGroup(String groupName, DocumentModel context) {
-        // NXP-20198 : Check test mode to be able to test the NPE
-        if (Framework.isTestModeSet()) {
-            return super.getGroup(groupName, context);
-        }
         NuxeoGroup grp = super.getGroup(groupName, context);
         if (activateComputedGroup() && (grp == null || getService().allowGroupOverride())) {
             NuxeoGroup computed = getService().getComputedGroup(groupName);
