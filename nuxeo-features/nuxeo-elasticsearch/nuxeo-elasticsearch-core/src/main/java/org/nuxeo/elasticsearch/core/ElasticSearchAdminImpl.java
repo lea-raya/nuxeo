@@ -1,5 +1,5 @@
 /*
- * (C) Copyright 2014 Nuxeo SA (http://nuxeo.com/) and others.
+ * (C) Copyright 2014-2016 Nuxeo SA (http://nuxeo.com/) and others.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,14 +39,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse;
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.NoNodeAvailableException;
 import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.settings.ImmutableSettings;
-import org.elasticsearch.common.settings.ImmutableSettings.Builder;
+import org.elasticsearch.cluster.health.ClusterHealthStatus;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.settings.Settings.Builder;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
@@ -143,17 +142,21 @@ public class ElasticSearchAdminImpl implements ElasticSearchAdmin {
             log.warn("Elasticsearch embedded configuration is ONLY for testing"
                     + " purpose. You need to create a dedicated Elasticsearch" + " cluster for production.");
         }
-        Builder sBuilder = ImmutableSettings.settingsBuilder();
-        sBuilder.put("http.enabled", conf.httpEnabled()).put("network.host", conf.getNetworkHost()).put("path.data",
-                conf.getDataPath()).put("index.number_of_shards", 1).put("index.number_of_replicas", 0).put(
-                "cluster.name", conf.getClusterName()).put("node.name", conf.getNodeName()).put(
-                "http.netty.worker_count", 4).put("http.cors.enabled", true).put(
-                "cluster.routing.allocation.disk.threshold_enabled", false).put("http.port", conf.getHttpPort());
+        Builder sBuilder = Settings.settingsBuilder();
+        sBuilder.put("http.enabled", conf.httpEnabled())
+                .put("network.host", conf.getNetworkHost())
+                .put("path.home", conf.getHomePath())
+                .put("path.data", conf.getDataPath())
+                .put("index.number_of_shards", 1)
+                .put("index.number_of_replicas", 0)
+                .put("cluster.name", conf.getClusterName())
+                .put("node.name", conf.getNodeName())
+                .put("http.netty.worker_count", 4)
+                .put("http.cors.enabled", true)
+                .put("cluster.routing.allocation.disk.threshold_enabled", false)
+                .put("http.port", conf.getHttpPort());
         if (conf.getIndexStorageType() != null) {
             sBuilder.put("index.store.type", conf.getIndexStorageType());
-            if (conf.getIndexStorageType().equals("memory")) {
-                sBuilder.put("gateway.type", "none");
-            }
         }
         Settings settings = sBuilder.build();
         log.debug("Using settings: " + settings.toDelimitedString(','));
@@ -171,15 +174,17 @@ public class ElasticSearchAdminImpl implements ElasticSearchAdmin {
 
     private Client connectToRemote(ElasticSearchRemoteConfig config) {
         log.info("Connecting to remote ES cluster: " + config);
-        Builder builder = ImmutableSettings.settingsBuilder().put("cluster.name", config.getClusterName()).put(
-                "client.transport.nodes_sampler_interval", config.getSamplerInterval()).put(
-                "client.transport.ping_timeout", config.getPingTimeout()).put("client.transport.ignore_cluster_name",
-                config.isIgnoreClusterName()).put("client.transport.sniff", config.isClusterSniff());
+        Builder builder = Settings.settingsBuilder()
+                                  .put("cluster.name", config.getClusterName())
+                                  .put("client.transport.nodes_sampler_interval", config.getSamplerInterval())
+                                  .put("client.transport.ping_timeout", config.getPingTimeout())
+                                  .put("client.transport.ignore_cluster_name", config.isIgnoreClusterName())
+                                  .put("client.transport.sniff", config.isClusterSniff());
         Settings settings = builder.build();
         if (log.isDebugEnabled()) {
             log.debug("Using settings: " + settings.toDelimitedString(','));
         }
-        TransportClient ret = new TransportClient(settings);
+        TransportClient ret = TransportClient.builder().settings(settings).build();
         String[] addresses = config.getAddresses();
         if (addresses == null) {
             log.error("You need to provide an addressList to join a cluster");
@@ -206,8 +211,12 @@ public class ElasticSearchAdminImpl implements ElasticSearchAdmin {
         String errorMessage = null;
         try {
             log.debug("Waiting for cluster yellow health status, indexes: " + Arrays.toString(indexNames));
-            ClusterHealthResponse ret = client.admin().cluster().prepareHealth(indexNames).setTimeout(
-                    TIMEOUT_WAIT_FOR_CLUSTER).setWaitForYellowStatus().get();
+            ClusterHealthResponse ret = client.admin()
+                                              .cluster()
+                                              .prepareHealth(indexNames)
+                                              .setTimeout(TIMEOUT_WAIT_FOR_CLUSTER)
+                                              .setWaitForYellowStatus()
+                                              .get();
             if (ret.isTimedOut()) {
                 errorMessage = "ES Cluster health status not Yellow after " + TIMEOUT_WAIT_FOR_CLUSTER + " give up: "
                         + ret;
@@ -322,7 +331,7 @@ public class ElasticSearchAdminImpl implements ElasticSearchAdmin {
         log.warn("Optimizing index: " + indexName);
         for (ElasticSearchIndexConfig conf : indexConfig.values()) {
             if (conf.getName().equals(indexName)) {
-                getClient().admin().indices().prepareOptimize(indexName).get();
+                getClient().admin().indices().prepareForceMerge(indexName).get();
             }
         }
         log.info("Optimize done");
@@ -390,16 +399,28 @@ public class ElasticSearchAdminImpl implements ElasticSearchAdmin {
         }
         log.info(String.format("Initialize index: %s, type: %s", conf.getName(), conf.getType()));
         boolean mappingExists = false;
-        boolean indexExists = getClient().admin().indices().prepareExists(conf.getName()).execute().actionGet().isExists();
+        boolean indexExists = getClient().admin()
+                                         .indices()
+                                         .prepareExists(conf.getName())
+                                         .execute()
+                                         .actionGet()
+                                         .isExists();
         if (indexExists) {
             if (!dropIfExists) {
                 log.debug("Index " + conf.getName() + " already exists");
-                mappingExists = getClient().admin().indices().prepareGetMappings(conf.getName()).execute().actionGet().getMappings().get(
-                        conf.getName()).containsKey(conf.getType());
+                mappingExists = getClient().admin()
+                                           .indices()
+                                           .prepareGetMappings(conf.getName())
+                                           .execute()
+                                           .actionGet()
+                                           .getMappings()
+                                           .get(conf.getName())
+                                           .containsKey(conf.getType());
             } else {
                 if (!Framework.isTestModeSet()) {
-                    log.warn(String.format("Initializing index: %s, type: %s with "
-                            + "dropIfExists flag, deleting an existing index", conf.getName(), conf.getType()));
+                    log.warn(String.format(
+                            "Initializing index: %s, type: %s with " + "dropIfExists flag, deleting an existing index",
+                            conf.getName(), conf.getType()));
                 }
                 getClient().admin().indices().delete(new DeleteIndexRequest(conf.getName())).actionGet();
                 indexExists = false;
@@ -410,15 +431,25 @@ public class ElasticSearchAdminImpl implements ElasticSearchAdmin {
             if (log.isDebugEnabled()) {
                 log.debug("Using settings: " + conf.getSettings());
             }
-            getClient().admin().indices().prepareCreate(conf.getName()).setSettings(conf.getSettings()).execute().actionGet();
+            getClient().admin()
+                       .indices()
+                       .prepareCreate(conf.getName())
+                       .setSettings(conf.getSettings())
+                       .execute()
+                       .actionGet();
         }
         if (!mappingExists) {
             log.info(String.format("Creating mapping type: %s on index: %s", conf.getType(), conf.getName()));
             if (log.isDebugEnabled()) {
                 log.debug("Using mapping: " + conf.getMapping());
             }
-            getClient().admin().indices().preparePutMapping(conf.getName()).setType(conf.getType()).setSource(
-                    conf.getMapping()).execute().actionGet();
+            getClient().admin()
+                       .indices()
+                       .preparePutMapping(conf.getName())
+                       .setType(conf.getType())
+                       .setSource(conf.getMapping())
+                       .execute()
+                       .actionGet();
             if (!dropIfExists && conf.getRepositoryName() != null) {
                 repositoryInitialized.add(conf.getRepositoryName());
             }

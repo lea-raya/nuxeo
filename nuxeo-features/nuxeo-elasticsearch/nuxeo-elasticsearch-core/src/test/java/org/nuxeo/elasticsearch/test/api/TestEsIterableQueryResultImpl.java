@@ -14,48 +14,47 @@
  * limitations under the License.
  *
  * Contributors:
- *     Antoine Taillefer <ataillefer@nuxeo.com>
+ *     Kevin Leturc
  */
-package org.nuxeo.elasticsearch.test;
+package org.nuxeo.elasticsearch.test.api;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.nuxeo.ecm.core.api.CoreSession;
 import org.nuxeo.ecm.core.api.DocumentModel;
-import org.nuxeo.ecm.core.api.DocumentModelList;
 import org.nuxeo.ecm.core.work.api.WorkManager;
 import org.nuxeo.elasticsearch.api.ElasticSearchAdmin;
 import org.nuxeo.elasticsearch.api.ElasticSearchService;
+import org.nuxeo.elasticsearch.api.EsIterableQueryResultImpl;
 import org.nuxeo.elasticsearch.api.EsScrollResult;
 import org.nuxeo.elasticsearch.query.NxQueryBuilder;
+import org.nuxeo.elasticsearch.test.RepositoryElasticSearchFeature;
 import org.nuxeo.runtime.test.runner.Features;
 import org.nuxeo.runtime.test.runner.FeaturesRunner;
 import org.nuxeo.runtime.test.runner.LocalDeploy;
 import org.nuxeo.runtime.transaction.TransactionHelper;
 
-/**
- * Tests the scroll search API exposed by {@link ElasticSearchService}.
- *
- * @since 8.3
- */
 @RunWith(FeaturesRunner.class)
 @Features({ RepositoryElasticSearchFeature.class })
-@LocalDeploy("org.nuxeo.elasticsearch.core:elasticsearch-test-contrib.xml")
-public class TestScrollSearch {
+@LocalDeploy({ "org.nuxeo.elasticsearch.core:schemas-test-contrib.xml",
+        "org.nuxeo.elasticsearch.core:elasticsearch-test-contrib.xml" })
+public class TestEsIterableQueryResultImpl {
 
     @Inject
     protected CoreSession session;
@@ -75,35 +74,67 @@ public class TestScrollSearch {
     }
 
     @Test
-    public void testScroll() throws Exception {
+    public void testIterableScroll() throws Exception {
 
         buildAndIndexTree(100);
 
-        // Initial search request, includes the first batch of results
-        String query = "select * from Document order by ecm:path";
-        EsScrollResult res = ess.scroll(new NxQueryBuilder(session).nxql(query).limit(20), 10000);
-        assertNotNull(res);
-        assertNotNull(res.getQueryBuilder());
-        assertEquals(10000, res.getKeepAlive());
-        assertNotNull(res.getScrollId());
+        String nxql = "select ecm:uuid, ecm:path from Document";
+        // Request the first batch
+        NxQueryBuilder queryBuilder = new NxQueryBuilder(session).nxql(nxql).limit(20).onlyElasticsearchResponse();
+        EsScrollResult res = ess.scroll(queryBuilder, 10000);
 
-        // Next result batches
-        int totalDocCount = 0;
-        List<String> docPaths = new ArrayList<>();
-        DocumentModelList docs = res.getDocuments();
-        while (!docs.isEmpty()) {
-            int hitCount = docs.size();
-            assertEquals(20, hitCount);
-            totalDocCount += hitCount;
-            docPaths.addAll(docs.stream().map(doc -> doc.getPathAsString()).collect(Collectors.toList()));
-            res = ess.scroll(res);
-            docs = res.getDocuments();
+        // Init wrapper
+        ElasticSearchService spiedEss = spy(ess);
+        EsIterableQueryResultImpl iterable = new EsIterableQueryResultImpl(spiedEss, res);
+        assertEquals(100, iterable.size());
+        assertEquals(0, iterable.pos());
+        assertTrue(iterable.isLife());
+        assertTrue(iterable.hasNext());
+
+        List<Map<String, Serializable>> rows = new ArrayList<>(100);
+        while (iterable.hasNext()) {
+            rows.add(iterable.next());
         }
-        assertEquals(100, totalDocCount);
+        assertEquals(100, rows.size());
+        // Each 20 items, a request is made to ES, check that
+        // So a request is made at 20, 40, 60, 80
+        verify(spiedEss, times(4)).scroll(any());
 
-        // Check order
-        assertEquals(session.query(query).stream().map(doc -> doc.getPathAsString()).collect(Collectors.toList()),
-                docPaths);
+        iterable.close();
+        verify(spiedEss, times(1)).clearScroll(any());
+
+    }
+
+    @Test
+    public void testIterableSkipTo() throws Exception {
+
+        buildAndIndexTree(100);
+
+        String nxql = "select ecm:uuid, ecm:path from Document";
+        // Request the first batch
+        NxQueryBuilder queryBuilder = new NxQueryBuilder(session).nxql(nxql).limit(20).onlyElasticsearchResponse();
+        EsScrollResult res = ess.scroll(queryBuilder, 10000);
+
+        // Init wrapper
+        ElasticSearchService spiedEss = spy(ess);
+        EsIterableQueryResultImpl iterable = new EsIterableQueryResultImpl(spiedEss, res);
+        iterable.skipTo(70);
+        // Each 20 items, a request is made to ES, check that
+        // So a request is made at 20, 40, 60
+        verify(spiedEss, times(3)).scroll(any());
+
+        List<Map<String, Serializable>> rows = new ArrayList<>(30);
+        while (iterable.hasNext()) {
+            rows.add(iterable.next());
+        }
+        assertEquals(30, rows.size());
+
+        // A request is made at 80
+        verify(spiedEss, times(4)).scroll(any());
+
+        iterable.close();
+        verify(spiedEss, times(1)).clearScroll(any());
+
     }
 
     protected void buildAndIndexTree(int docCount) throws Exception {
@@ -128,7 +159,7 @@ public class TestScrollSearch {
         if (!TransactionHelper.isTransactionActive()) {
             TransactionHelper.startTransaction();
         }
-        Assert.assertEquals(0, esa.getPendingWorkerCount());
+        assertEquals(0, esa.getPendingWorkerCount());
     }
 
     /**
