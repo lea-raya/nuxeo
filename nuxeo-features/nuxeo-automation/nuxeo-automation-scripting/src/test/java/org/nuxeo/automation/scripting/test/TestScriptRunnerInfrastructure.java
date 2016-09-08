@@ -440,6 +440,9 @@ public class TestScriptRunnerInfrastructure {
         assertNotNull(result);
     }
 
+    /*
+     * NXP-19012
+     */
     @Test
     public void canUnwrapContextWithTrace() throws OperationException {
         if (!factory.getRecordingState()) {
@@ -452,8 +455,12 @@ public class TestScriptRunnerInfrastructure {
         docs.add(root);
         docs.add(root);
         ctx.put("docs", docs);
-        Object result = automationService.run(ctx, "Scripting.SimpleScript", null);
+        ctx.setInput(root);
+        Map<String, Object> params = new HashMap<>();
+        Object result = automationService.run(ctx, "Scripting.ChainWithScripting", params);
         assertNotNull(result);
+        // check if the context has been unwrapped correctly
+        assertTrue(ctx.get("docs") instanceof DocumentModelList && ((DocumentModelList) ctx.get("docs")).size() == 2);
     }
 
     @Test
